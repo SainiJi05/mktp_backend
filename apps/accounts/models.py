@@ -67,3 +67,16 @@ class Address(models.Model):
 
 	def __str__(self) -> str:
 		return f"{self.name} ({self.city})"
+
+
+class BankDetails(models.Model):
+	user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="bank_details")
+	account_holder_name = models.CharField(max_length=150, blank=True)
+	account_number = models.CharField(max_length=50, blank=True)
+	ifsc_code = models.CharField(max_length=20, blank=True)
+	upi_id = models.CharField(max_length=150, blank=True)
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	def __str__(self) -> str:
+		return f"BankDetails for {self.user.email}"

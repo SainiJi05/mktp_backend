@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from apps.accounts.models import Address, User
+from apps.accounts.models import Address, BankDetails, User
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -38,6 +38,49 @@ class AddressSerializer(serializers.ModelSerializer):
 			"updated_at",
 		]
 		read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class BankDetailsSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = BankDetails
+		fields = [
+			"id",
+			"account_holder_name",
+			"account_number",
+			"ifsc_code",
+			"upi_id",
+			"created_at",
+			"updated_at",
+		]
+		read_only_fields = ["id", "created_at", "updated_at"]
+
+	def validate(self, attrs):
+		bank_fields = [
+			"account_holder_name",
+			"account_number",
+			"ifsc_code",
+		]
+		instance = self.instance
+		def field_value(field_name):
+			if field_name in attrs:
+				return attrs.get(field_name)
+			return getattr(instance, field_name, None) if instance else None
+		has_any_bank_field = any(field_value(field) for field in bank_fields)
+		if has_any_bank_field:
+			missing = [field for field in bank_fields if not field_value(field)]
+			if missing:
+				raise serializers.ValidationError(
+					{"bank_details": f"Missing required bank fields: {', '.join(missing)}"}
+				)
+		if instance:
+			upi_value = attrs.get("upi_id", instance.upi_id)
+		else:
+			upi_value = attrs.get("upi_id")
+		if not has_any_bank_field and not upi_value:
+			raise serializers.ValidationError(
+				{"upi_id": "Provide either a UPI ID or complete bank details."}
+			)
+		return super().validate(attrs)
 
 
 class RegisterSerializer(serializers.ModelSerializer):
