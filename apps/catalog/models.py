@@ -7,6 +7,7 @@ from apps.accounts.models import Address, User
 class Category(models.Model):
 	name = models.CharField(max_length=150)
 	slug = models.SlugField(unique=True)
+	image = models.ImageField(upload_to="categories/", null=True, blank=True)
 	parent = models.ForeignKey(
 		"self", on_delete=models.SET_NULL, related_name="children", null=True, blank=True
 	)
@@ -156,7 +157,7 @@ class ProductVariant(models.Model):
 
 class ProductImage(models.Model):
 	product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
-	image_url = models.URLField()
+	image = models.ImageField(upload_to="products/")
 	alt_text = models.CharField(max_length=150, blank=True)
 	sort_order = models.PositiveIntegerField(default=0)
 	created_at = models.DateTimeField(auto_now_add=True)

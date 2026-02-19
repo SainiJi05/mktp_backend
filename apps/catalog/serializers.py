@@ -17,7 +17,12 @@ from apps.catalog.models import (
 class CategorySerializer(serializers.ModelSerializer):
 	class Meta:
 		model = Category
-		fields = ["id", "name", "slug", "parent"]
+		fields = ["id", "name", "slug", "image", "parent"]
+
+	def validate(self, attrs):
+		if self.instance is None and not attrs.get("image"):
+			raise serializers.ValidationError({"image": "Category image is required."})
+		return super().validate(attrs)
 
 
 class ProductColorSerializer(serializers.ModelSerializer):
@@ -35,9 +40,19 @@ class ProductSizeSerializer(serializers.ModelSerializer):
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
+	image_url = serializers.SerializerMethodField(read_only=True)
+
 	class Meta:
 		model = ProductImage
-		fields = ["id", "image_url", "alt_text", "sort_order"]
+		fields = ["id", "image", "image_url", "alt_text", "sort_order"]
+
+	def get_image_url(self, obj):
+		if obj.image:
+			request = self.context.get("request")
+			if request:
+				return request.build_absolute_uri(obj.image.url)
+			return obj.image.url
+		return ""
 
 
 class ProductVariantSerializer(serializers.ModelSerializer):

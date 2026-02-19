@@ -1,5 +1,6 @@
 from django.db.models import Q
 from rest_framework import permissions, status, viewsets
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -30,6 +31,7 @@ from apps.catalog.serializers import (
 class CategoryViewSet(viewsets.ModelViewSet):
 	queryset = Category.objects.all()
 	serializer_class = CategorySerializer
+	parser_classes = [MultiPartParser, FormParser, JSONParser]
 
 	def get_permissions(self):
 		if self.action in {"list", "retrieve"}:
@@ -61,6 +63,7 @@ class ProductSizeViewSet(viewsets.ModelViewSet):
 
 class ProductViewSet(viewsets.ModelViewSet):
 	serializer_class = ProductSerializer
+	parser_classes = [MultiPartParser, FormParser, JSONParser]
 	search_fields = ["name", "description", "base_sku"]
 	ordering_fields = ["created_at", "selling_price"]
 	filterset_fields = ["condition", "status", "seller", "category", "product_type"]
@@ -108,11 +111,17 @@ class ProductViewSet(viewsets.ModelViewSet):
 			raise PermissionDenied("You can only add images to your own products.")
 		
 		images_data = request.data.get("images", [])
-		serializer = ProductImageSerializer(data=images_data, many=True)
+		serializer = ProductImageSerializer(data=images_data, many=True, context={"request": request})
 		if serializer.is_valid():
 			for image in serializer.validated_data:
 				ProductImage.objects.create(product=product, **image)
-			return Response(ProductImageSerializer(product.images.all(), many=True).data)
+			return Response(
+				ProductImageSerializer(
+					product.images.all(),
+					many=True,
+					context={"request": request},
+				).data
+			)
 		return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 	@action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
