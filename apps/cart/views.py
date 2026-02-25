@@ -45,7 +45,7 @@ class CartItemViewSet(viewsets.ModelViewSet):
 			variant=variant,
 			defaults={
 				"quantity": serializer.validated_data["quantity"],
-				"price_snapshot": variant.price_override if variant and variant.price_override else product.base_price,
+				"price_snapshot": variant.price_override if variant and variant.price_override else product.selling_price,
 			},
 		)
 		if not created:

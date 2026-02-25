@@ -56,7 +56,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 				seller = product.seller
 			if product.seller_id != seller.id:
 				raise ValidationError("All items must be from the same seller.")
-			unit_price = variant.price_override if variant and variant.price_override else product.base_price
+			unit_price = variant.price_override if variant and variant.price_override else product.selling_price
 			line_total = unit_price * item["quantity"]
 			subtotal += line_total
 			order_items.append((product, variant, item["quantity"], unit_price, line_total))
