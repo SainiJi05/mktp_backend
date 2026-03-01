@@ -9,3 +9,4 @@ class BoutiqueAdmin(admin.ModelAdmin):
     list_filter = ("status", "is_active", "created_at")
     search_fields = ("name", "owner__email", "city", "state")
     ordering = ("-created_at",)
+    autocomplete_fields = ['owner']

@@ -51,6 +51,7 @@ class ProductAdmin(admin.ModelAdmin):
 	search_fields = ("name", "base_sku", "seller__email")
 	inlines = [ProductImageInline, ProductVariantInline, RentalAvailabilityInline]
 	ordering = ("-created_at",)
+	autocomplete_fields = ['seller', 'boutique']
 
 
 @admin.register(ProductImage)
