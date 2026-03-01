@@ -22,6 +22,7 @@ PyYAML==6.0.3
 razorpay==2.0.0
 referencing==0.37.0
 requests==2.32.5
+runpod==1.7.13
 rpds-py==0.30.0
 setuptools==82.0.0
 sqlparse==0.5.5

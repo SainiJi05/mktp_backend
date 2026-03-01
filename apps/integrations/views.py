@@ -1,13 +1,22 @@
+import base64
+from io import BytesIO
+
 import razorpay
+import runpod
 from django.conf import settings
 from django.db import transaction
+from django.http import FileResponse
 from rest_framework import permissions
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
-from apps.integrations.serializers import MakePaymentSerializer, VerifyPaymentSerializer
+from apps.integrations.serializers import (
+	MakePaymentSerializer,
+	VerifyPaymentSerializer,
+	VTONTryOnSerializer,
+)
 from apps.orders.models import Order
 
 
@@ -15,6 +24,11 @@ def _get_razorpay_client():
 	if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
 		raise ValidationError("Razorpay keys are not configured.")
 	return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+
+def _file_to_base64(file_obj) -> str:
+	file_obj.seek(0)
+	return base64.b64encode(file_obj.read()).decode("utf-8")
 
 
 class MakePaymentView(APIView):
@@ -125,3 +139,43 @@ class VerifyPaymentView(APIView):
 				"razorpay_payment_id": order.razorpay_payment_id,
 			}
 		)
+
+
+class VTONTryOnView(APIView):
+	permission_classes = [permissions.IsAuthenticated]
+
+	def post(self, request, *args, **kwargs):
+		serializer = VTONTryOnSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		if not settings.RUNPOD_API_KEY or not settings.RUNPOD_VTON_ENDPOINT_ID:
+			raise ValidationError("RunPod VTON settings are not configured.")
+
+		runpod.api_key = settings.RUNPOD_API_KEY
+		endpoint = runpod.Endpoint(settings.RUNPOD_VTON_ENDPOINT_ID)
+
+		payload = {
+			"input": {
+				"person_image": _file_to_base64(serializer.validated_data["person_image"]),
+				"garment_image": _file_to_base64(serializer.validated_data["garment_image"]),
+				"category": serializer.validated_data["category"],
+			}
+		}
+
+		response = endpoint.run_sync(payload, timeout=serializer.validated_data["timeout"])
+
+		if not isinstance(response, dict):
+			raise ValidationError("Unexpected RunPod response format.")
+
+		error = response.get("error")
+		if error:
+			raise ValidationError({"runpod": error})
+
+		output_image = response.get("output_image")
+		if not output_image and isinstance(response.get("output"), dict):
+			output_image = response["output"].get("output_image")
+
+		if not output_image:
+			raise ValidationError("RunPod response did not include output_image.")
+
+		return Response({"output_image": output_image}, status=200)
