@@ -10,6 +10,7 @@ from apps.accounts.models import User
 from apps.accounts.permissions import IsAdmin
 from apps.orders.models import CustomizationRequest, Order, OrderItem
 from apps.orders.serializers import CustomizationRequestSerializer, OrderSerializer
+from apps.wallet.services import credit_seller_on_order_delivery
 
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -80,6 +81,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 		return Response(OrderSerializer(order).data, status=201)
 
 	@action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated])
+	@transaction.atomic
 	def update_status(self, request, pk=None):
 		order = self.get_object()
 		if request.user.role != User.Role.ADMIN and order.seller_id != request.user.id:
@@ -87,8 +89,13 @@ class OrderViewSet(viewsets.ModelViewSet):
 		new_status = request.data.get("status")
 		if new_status not in Order.Status.values:
 			raise ValidationError("Invalid status.")
+		was_delivered = order.status == Order.Status.DELIVERED
+		if new_status == Order.Status.DELIVERED and order.payment_status != Order.PaymentStatus.PAID:
+			raise ValidationError("Cannot mark unpaid order as delivered.")
 		order.status = new_status
 		order.save(update_fields=["status", "updated_at"])
+		if new_status == Order.Status.DELIVERED and not was_delivered:
+			credit_seller_on_order_delivery(order)
 		return Response(OrderSerializer(order).data)
 
 

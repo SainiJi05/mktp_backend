@@ -83,8 +83,8 @@ class ProductViewSet(viewsets.ModelViewSet):
 				return queryset.filter(seller=user)
 			return queryset.none()
 		if user.is_authenticated:
-			return queryset.filter(Q(status=Product.Status.PUBLISHED, is_active=True) | Q(seller=user))
-		return queryset.filter(status=Product.Status.PUBLISHED, is_active=True)
+			return queryset.filter(Q(status=Product.Status.PUBLISHED) | Q(seller=user))
+		return queryset.filter(status=Product.Status.PUBLISHED)
 
 	def get_permissions(self):
 		if self.action in {"list", "retrieve"}:

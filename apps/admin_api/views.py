@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Count
 from rest_framework import generics, permissions, viewsets
 from rest_framework.decorators import action
@@ -15,6 +16,7 @@ from apps.admin_api.serializers import (
 )
 from apps.catalog.models import Product
 from apps.orders.models import Order
+from apps.wallet.services import credit_seller_on_order_delivery
 
 
 class MarketplaceSettingsView(generics.RetrieveUpdateAPIView):
@@ -57,13 +59,19 @@ class OrderAdminViewSet(viewsets.ReadOnlyModelViewSet):
 	permission_classes = [IsAdmin]
 
 	@action(detail=True, methods=["post"], permission_classes=[IsAdmin])
+	@transaction.atomic
 	def update_status(self, request, pk=None):
 		order = self.get_object()
 		new_status = request.data.get("status")
 		if new_status not in Order.Status.values:
 			return Response({"detail": "Invalid status."}, status=400)
+		was_delivered = order.status == Order.Status.DELIVERED
+		if new_status == Order.Status.DELIVERED and order.payment_status != Order.PaymentStatus.PAID:
+			return Response({"detail": "Cannot mark unpaid order as delivered."}, status=400)
 		order.status = new_status
 		order.save(update_fields=["status", "updated_at"])
+		if new_status == Order.Status.DELIVERED and not was_delivered:
+			credit_seller_on_order_delivery(order)
 		return Response(self.get_serializer(order).data)
 
 

@@ -1,8 +1,12 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from apps.integrations.views import MakePaymentView, VerifyPaymentView
+
 router = DefaultRouter()
 
 urlpatterns = [
+    path("make-payment/", MakePaymentView.as_view(), name="make-payment"),
+    path("verify-payment/", VerifyPaymentView.as_view(), name="verify-payment"),
     path("", include(router.urls)),
 ]

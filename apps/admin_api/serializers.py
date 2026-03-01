@@ -61,6 +61,8 @@ class OrderAdminSerializer(serializers.ModelSerializer):
 			"seller_email",
 			"status",
 			"payment_status",
+			"seller_settlement_credited",
+			"seller_settlement_amount",
 			"subtotal",
 			"total",
 			"currency",

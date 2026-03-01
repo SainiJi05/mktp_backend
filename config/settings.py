@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.orders",
     "apps.admin_api",
     "apps.integrations",
+    "apps.wallet",
 ]
 
 MIDDLEWARE = [
@@ -156,6 +157,10 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.environ.get("ACCESS_TOKEN_MINUTES", "60"))),
 }
+
+PLATFORM_COMMISSION_PERCENT = os.environ.get("PLATFORM_COMMISSION_PERCENT", "10")
+RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Boutique Marketplace API",
