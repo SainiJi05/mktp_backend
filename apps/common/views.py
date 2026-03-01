@@ -42,6 +42,12 @@ class SectionViewSet(viewsets.ModelViewSet):
 			return [permissions.AllowAny()]
 		return [IsAdmin()]
 
+	def get_queryset(self):
+		queryset = super().get_queryset()
+		if self.action in ["list", "retrieve"]:
+			queryset = queryset.filter(sectionproducts__product__status="published").distinct()
+		return queryset
+
 	@action(detail=True, methods=["post"], permission_classes=[IsAdmin])
 	def add_product(self, request, pk=None):
 		"""Add a product to a section"""
