@@ -6,7 +6,8 @@ import runpod
 from django.conf import settings
 from django.db import transaction
 from django.http import FileResponse
-from rest_framework import permissions
+from drf_spectacular.utils import extend_schema, OpenApiExample
+from rest_framework import permissions, serializers
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -14,8 +15,11 @@ from rest_framework.views import APIView
 from apps.accounts.models import User
 from apps.integrations.serializers import (
 	MakePaymentSerializer,
+	MakePaymentResponseSerializer,
 	VerifyPaymentSerializer,
+	VerifyPaymentResponseSerializer,
 	VTONTryOnSerializer,
+	VTONTryOnResponseSerializer,
 )
 from apps.orders.models import Order
 
@@ -34,6 +38,12 @@ def _file_to_base64(file_obj) -> str:
 class MakePaymentView(APIView):
 	permission_classes = [permissions.IsAuthenticated]
 
+	@extend_schema(
+		request=MakePaymentSerializer,
+		responses={201: MakePaymentResponseSerializer},
+		summary="Create Razorpay payment order",
+		description="Creates a Razorpay payment order for the specified order ID",
+	)
 	def post(self, request, *args, **kwargs):
 		serializer = MakePaymentSerializer(data=request.data)
 		serializer.is_valid(raise_exception=True)
@@ -82,6 +92,12 @@ class MakePaymentView(APIView):
 class VerifyPaymentView(APIView):
 	permission_classes = [permissions.IsAuthenticated]
 
+	@extend_schema(
+		request=VerifyPaymentSerializer,
+		responses={200: VerifyPaymentResponseSerializer},
+		summary="Verify Razorpay payment",
+		description="Verifies Razorpay payment signature and updates order payment status",
+	)
 	@transaction.atomic
 	def post(self, request, *args, **kwargs):
 		serializer = VerifyPaymentSerializer(data=request.data)
@@ -144,6 +160,31 @@ class VerifyPaymentView(APIView):
 class VTONTryOnView(APIView):
 	permission_classes = [permissions.IsAuthenticated]
 
+	@extend_schema(
+		request=VTONTryOnSerializer,
+		responses={200: VTONTryOnResponseSerializer},
+		summary="Virtual Try-On using RunPod AI",
+		description="Generate virtual try-on image by combining person and garment images using RunPod VTON endpoint. Returns base64 encoded PNG image.",
+		examples=[
+			OpenApiExample(
+				"Example Request",
+				description="Upload person and garment images with category",
+				value={
+					"person_image": "(binary image file)",
+					"garment_image": "(binary image file)",
+					"category": "tops",
+					"timeout": 300
+				},
+				request_only=True,
+			),
+			OpenApiExample(
+				"Example Response",
+				description="Base64 encoded PNG image result",
+				value={"output_image": "iVBORw0KGgoAAAANSUhEUgAA..."},
+				response_only=True,
+			),
+		],
+	)
 	def post(self, request, *args, **kwargs):
 		serializer = VTONTryOnSerializer(data=request.data)
 		serializer.is_valid(raise_exception=True)
