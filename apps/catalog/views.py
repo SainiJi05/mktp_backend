@@ -87,10 +87,8 @@ class ProductViewSet(viewsets.ModelViewSet):
 		return queryset
 
 	def get_permissions(self):
-		if self.action in {"list", "retrieve"}:
+		if self.request.method in permissions.SAFE_METHODS:
 			return [permissions.AllowAny()]
-		if self.action in {"create", "update", "partial_update", "destroy"}:
-			return [permissions.IsAuthenticated()]
 		return [permissions.IsAuthenticated()]
 
 	def perform_create(self, serializer):
