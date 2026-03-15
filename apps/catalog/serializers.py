@@ -193,7 +193,6 @@ class ProductSerializer(serializers.ModelSerializer):
 		instance.save()
 		
 		if images_data is not None:
-			instance.images.all().delete()
 			for image in images_data:
 				ProductImage.objects.create(product=instance, **image)
 		

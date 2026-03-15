@@ -174,7 +174,8 @@ CORS_ALLOWED_ORIGINS = env_list(
 )
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.environ.get("ACCESS_TOKEN_MINUTES", "60"))),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=int(os.environ.get("ACCESS_TOKEN_DAYS", "30"))),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=int(os.environ.get("REFRESH_TOKEN_DAYS", "30"))),
 }
 
 PLATFORM_COMMISSION_PERCENT = os.environ.get("PLATFORM_COMMISSION_PERCENT", "10")
