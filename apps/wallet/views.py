@@ -2,7 +2,8 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
-from rest_framework import generics, permissions, viewsets
+from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view, inline_serializer
+from rest_framework import generics, permissions, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -18,9 +19,41 @@ from apps.wallet.serializers import (
 from apps.wallet.services import get_or_create_wallet
 
 
+WithdrawalCreateRequestSerializer = inline_serializer(
+    name="WithdrawalCreateRequest",
+    fields={
+        "amount": serializers.DecimalField(
+            max_digits=12,
+            decimal_places=2,
+            help_text="Amount to withdraw from the seller wallet.",
+        )
+    },
+)
+
+WithdrawalReviewRequestSerializer = inline_serializer(
+    name="WithdrawalReviewRequest",
+    fields={
+        "admin_note": serializers.CharField(
+            required=False,
+            allow_blank=True,
+            help_text="Optional admin note recorded against the review decision.",
+        )
+    },
+)
+
+
 class WalletMeView(generics.RetrieveAPIView):
     serializer_class = WalletSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        tags=["Wallet"],
+        summary="Get current user wallet",
+        description="Returns the authenticated user's wallet with current balance and recent transactions.",
+        responses={200: WalletSerializer},
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
     def get_object(self):
         wallet = get_or_create_wallet(self.request.user)
@@ -28,6 +61,20 @@ class WalletMeView(generics.RetrieveAPIView):
         return wallet
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Wallet"],
+        summary="List wallet transactions",
+        description="Returns wallet transactions. Admins can view all transactions, while non-admin users can view only their own.",
+        responses={200: WalletTransactionSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        tags=["Wallet"],
+        summary="Get wallet transaction detail",
+        description="Returns details for a specific wallet transaction. Non-admin users can access only their own transactions.",
+        responses={200: WalletTransactionSerializer},
+    ),
+)
 class WalletTransactionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = WalletTransactionSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -43,6 +90,34 @@ class WalletTransactionViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Wallet"],
+        summary="List withdrawal requests",
+        description="Returns withdrawal requests. Admins can view all requests; sellers can view only their own requests.",
+        responses={200: WithdrawalRequestSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        tags=["Wallet"],
+        summary="Get withdrawal request detail",
+        description="Returns full details of a specific withdrawal request.",
+        responses={200: WithdrawalRequestSerializer},
+    ),
+    create=extend_schema(
+        tags=["Wallet"],
+        summary="Create withdrawal request",
+        description="Creates a withdrawal request for the authenticated seller using saved bank details and available wallet balance.",
+        request=WithdrawalCreateRequestSerializer,
+        responses={201: WithdrawalRequestSerializer},
+        examples=[
+            OpenApiExample(
+                "Create withdrawal request",
+                value={"amount": "500.00"},
+                request_only=True,
+            )
+        ],
+    ),
+)
 class WithdrawalRequestViewSet(viewsets.ModelViewSet):
     serializer_class = WithdrawalRequestSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -80,6 +155,20 @@ class WithdrawalRequestViewSet(viewsets.ModelViewSet):
             upi_id_snapshot=bank_details.upi_id,
         )
 
+    @extend_schema(
+        tags=["Wallet"],
+        summary="Approve withdrawal request",
+        description="Admin-only endpoint. Approves a pending withdrawal, debits wallet balance, and creates a wallet debit transaction record.",
+        request=WithdrawalReviewRequestSerializer,
+        responses={200: WithdrawalRequestSerializer},
+        examples=[
+            OpenApiExample(
+                "Approve withdrawal request",
+                value={"admin_note": "Approved after bank details verification."},
+                request_only=True,
+            )
+        ],
+    )
     @action(detail=True, methods=["post"], permission_classes=[IsAdmin])
     @transaction.atomic
     def approve(self, request, pk=None):
@@ -118,6 +207,20 @@ class WithdrawalRequestViewSet(viewsets.ModelViewSet):
 
         return Response(self.get_serializer(withdrawal).data)
 
+    @extend_schema(
+        tags=["Wallet"],
+        summary="Reject withdrawal request",
+        description="Admin-only endpoint. Rejects a pending withdrawal request and records the admin note.",
+        request=WithdrawalReviewRequestSerializer,
+        responses={200: WithdrawalRequestSerializer},
+        examples=[
+            OpenApiExample(
+                "Reject withdrawal request",
+                value={"admin_note": "Rejected due to KYC mismatch."},
+                request_only=True,
+            )
+        ],
+    )
     @action(detail=True, methods=["post"], permission_classes=[IsAdmin])
     def reject(self, request, pk=None):
         withdrawal = self.get_object()
