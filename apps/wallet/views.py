@@ -133,8 +133,8 @@ class WithdrawalRequestViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        if user.role == User.Role.CUSTOMER:
-            raise PermissionDenied("Only sellers can create withdrawal requests.")
+        if user.role == User.Role.ADMIN:
+            raise PermissionDenied("Admin cannot create withdrawal requests.")
 
         bank_details = getattr(user, "bank_details", None)
         if bank_details is None:
